@@ -8,7 +8,28 @@ import(
 
 var serviceConn net.Conn
 
-func start(){
+type Service struct{
+  name          string
+  address       string
+  connection    net.Conn
+}
+
+func (s *Service) Connect(){ //Should return something
+  conn, err := net.Dial("tcp", s.address)
+
+  if err != nil {
+      fmt.Println("[BROK] Error on connect to Service : " + s.name)
+  }
+
+  s.connection = conn
+}
+
+type Brok struct{
+  service Service //Will be an Array in the future
+}
+
+
+func (b *Brok) Start(){
   listener, err := net.Listen("tcp", ":8666")
   if err != nil {
     fmt.Println("Error on Listening for Connections")
@@ -23,33 +44,29 @@ func start(){
       break
     }
     fmt.Println("[BROK] Incomming Connection")
-    go handleConnection(connection)
+    go b.Handle(connection)
   }
 }
 
-func handleConnection(connection net.Conn){
-  defer connection.Close()
+func (b *Brok) Handle(clientConn net.Conn){
+  defer clientConn.Close()
 
   go func(){
-    io.Copy(serviceConn, connection)
+    io.Copy(b.service.connection, clientConn)
   }()
 
-  io.Copy(connection, serviceConn)
+  io.Copy(clientConn, b.service.connection)
 
-  serviceConn.Close()
-}
-
-func connectToService() net.Conn {
-  //In this example i'm using REDIS as Service Backend
-  serviceConn, err := net.Dial("tcp", "localhost:6379")
-
-  if err != nil {
-    fmt.Println("Error on connect to Service")
-  }
-  return serviceConn
+  b.service.connection.Close()
 }
 
 func main() {
-  serviceConn = connectToService()
-  start()
+  //
+  service := Service{name: "redis", address:"localhost:6379"}
+  service.Connect()
+
+  //
+  brok := Brok{service: service}
+  brok.Start()
+
 }
