@@ -1,5 +1,5 @@
 #BROK
-Simple TCP Proxy to Dynamic Backend Services written in GO
+A Dynamic Proxy to Distributed Services
 
 #Running
 `
