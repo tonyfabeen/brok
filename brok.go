@@ -68,6 +68,7 @@ func (s *Service) Connect() bool{
 /////////////////////////////
 
 func (b *Brok) Start(){
+  b.services = make(map[string]Service)
   b.AvailableServices()
   b.ProxyAll()
 }
