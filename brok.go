@@ -6,37 +6,25 @@ import(
   "fmt"
 )
 
-var serviceConn net.Conn
-
 type Service struct{
-  name          string
-  address       string
-  connection    net.Conn
-}
-
-func (s *Service) Connect(){ //Should return something
-  conn, err := net.Dial("tcp", s.address)
-
-  if err != nil {
-      fmt.Println("[BROK] Error on connect to Service : " + s.name)
-  }
-
-  s.connection = conn
+  name             string
+  localAddress     string
+  externalAddress  string
+  connection       net.Conn
 }
 
 type Brok struct{
-  service Service //Will be an Array in the future
+  services map[string]Service
 }
 
-
-func (b *Brok) Start(){
-  listener, err := net.Listen("tcp", ":8666")
+func (s *Service) Listen() {
+  listener, err := net.Listen("tcp", s.localAddress)
   if err != nil {
-    fmt.Println("Error on Listening for Connections")
+    fmt.Println("[BROK] Error on Listening for Connections at ", s.localAddress)
     return
   }
 
-  fmt.Println("[BROK] Started at port 8666")
+  fmt.Println("[BROK] Service started at ", s.localAddress)
 
   for {
     connection, err := listener.Accept()
@@ -44,29 +32,60 @@ func (b *Brok) Start(){
       break
     }
     fmt.Println("[BROK] Incomming Connection")
-    go b.Handle(connection)
+    go s.Handle(connection)
   }
+
 }
 
-func (b *Brok) Handle(clientConn net.Conn){
+func (s *Service) Handle(clientConn net.Conn){
   defer clientConn.Close()
 
   go func(){
-    io.Copy(b.service.connection, clientConn)
+    io.Copy(s.connection, clientConn)
   }()
 
-  io.Copy(clientConn, b.service.connection)
+  io.Copy(clientConn, s.connection)
 
-  b.service.connection.Close()
+  s.connection.Close()
+}
+
+
+func (s *Service) Connect() bool{
+  conn, err := net.Dial("tcp", s.externalAddress)
+
+  if err != nil {
+      fmt.Println("[BROK] Error on connect to Service : " + s.name)
+      return false
+  }
+
+  s.connection = conn
+  return true
+}
+
+/////////////////////////////
+/////////////////////////////
+/////////////////////////////
+/////////////////////////////
+
+func (b *Brok) Start(){
+  b.AvailableServices()
+  b.ProxyAll()
+}
+
+func (b *Brok) AvailableServices(){
+  redis := Service{ name: "redis",
+                    localAddress:"localhost:8379",
+                    externalAddress:"localhost:6379"}
+  b.services[redis.name] = redis
+}
+
+func (b *Brok) ProxyAll(){
+  fmt.Println("IT WILL START TO PROXY ALL")
 }
 
 func main() {
   //
-  service := Service{name: "redis", address:"localhost:6379"}
-  service.Connect()
-
-  //
-  brok := Brok{service: service}
+  brok := new(Brok)
   brok.Start()
 
 }
