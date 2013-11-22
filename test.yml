@@ -1,0 +1,2 @@
+services :
+  - redis: 6379

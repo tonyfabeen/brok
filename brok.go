@@ -4,6 +4,8 @@ import(
   "io"
   "net"
   "fmt"
+  "log"
+  "github.com/kylelemons/go-gypsy/yaml"
 )
 
 type Service struct{
@@ -92,8 +94,19 @@ func (b *Brok) ProxyAll(){
   }
 }
 
+func readYAML(){
+  config, err := yaml.ReadFile("test.yml")
+  if err != nil {
+    log.Fatalf("readfile %s", err)
+  }
+  log.Println("YML SERVICES", config)
+  log.Println(config.Get("yaml"))
+
+}
+
 func main() {
   //
+  readYAML()
   brok := new(Brok)
   brok.Start()
 
