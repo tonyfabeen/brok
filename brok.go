@@ -5,7 +5,7 @@ import(
   "net"
   "fmt"
   "log"
-  "github.com/kylelemons/go-gypsy/yaml"
+  "github.com/msbranco/goconfig"
 )
 
 type Service struct{
@@ -94,19 +94,24 @@ func (b *Brok) ProxyAll(){
   }
 }
 
-func readYAML(){
-  config, err := yaml.ReadFile("test.yml")
-  if err != nil {
-    log.Fatalf("readfile %s", err)
+
+func readConfig(){
+  c, err := goconfig.ReadConfigFile("services")
+  if err != nil{
+    log.Fatalf("Fail on Read Config")
   }
-  log.Println("YML SERVICES", config)
-  log.Println(config.Get("yaml"))
+
+  s := c.GetSections()
+
+  for k, v := range s {
+    fmt.Println("KEY :", k, "VALUE :", v)
+  }
 
 }
 
 func main() {
   //
-  readYAML()
+  readConfig()
   brok := new(Brok)
   brok.Start()
 
