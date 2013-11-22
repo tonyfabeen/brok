@@ -81,7 +81,15 @@ func (b *Brok) AvailableServices(){
 }
 
 func (b *Brok) ProxyAll(){
-  fmt.Println("IT WILL START TO PROXY ALL")
+  for key, service := range b.services {
+    fmt.Println("KEY\t: ", key,
+                "\nLOCAL\t: ", service.localAddress,
+                "\nREMOTE\t: ", service.externalAddress)
+
+    //
+    service.Connect()
+    service.Listen()
+  }
 }
 
 func main() {
