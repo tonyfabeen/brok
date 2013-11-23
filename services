@@ -1,2 +1,3 @@
 [redis]
-[mysql]
+binding-port=6379
+

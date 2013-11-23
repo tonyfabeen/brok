@@ -3,7 +3,6 @@ package main
 import(
   "io"
   "net"
-  "fmt"
   "log"
   "github.com/msbranco/goconfig"
 )
@@ -22,18 +21,18 @@ type Brok struct{
 func (s *Service) Listen() {
   listener, err := net.Listen("tcp", s.localAddress)
   if err != nil {
-    fmt.Println("[BROK] Error on Listening for Connections at ", s.localAddress)
+    log.Println("[BROK] Error on Listening for Connections at ", s.localAddress)
     return
   }
 
-  fmt.Println("[BROK] Service started at ", s.localAddress)
+  log.Println("[BROK] Service started at ", s.localAddress)
 
   for {
     connection, err := listener.Accept()
     if err != nil {
       break
     }
-    fmt.Println("[BROK] Incomming Connection")
+    log.Println("[BROK] Incomming Connection")
     go s.Handle(connection)
   }
 
@@ -56,7 +55,7 @@ func (s *Service) Connect() bool{
   conn, err := net.Dial("tcp", s.externalAddress)
 
   if err != nil {
-      fmt.Println("[BROK] Error on connect to Service : " + s.name)
+      log.Println("[BROK] Error on connect to Service : " + s.name)
       return false
   }
 
@@ -84,12 +83,14 @@ func (b *Brok) AvailableServices(){
 
 func (b *Brok) ProxyAll(){
   for key, service := range b.services {
-    fmt.Println("KEY\t: ", key,
+    log.Println("KEY\t: ", key,
                 "\nLOCAL\t: ", service.localAddress,
                 "\nREMOTE\t: ", service.externalAddress)
 
     //
-    service.Connect()
+    if !service.Connect() {
+      break
+    }
     service.Listen()
   }
 }
@@ -104,7 +105,7 @@ func readConfig(){
   s := c.GetSections()
 
   for k, v := range s {
-    fmt.Println("KEY :", k, "VALUE :", v)
+    log.Println("KEY :", k, "VALUE :", v)
   }
 
 }
