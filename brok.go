@@ -7,6 +7,8 @@ import(
   "github.com/msbranco/goconfig"
 )
 
+type Brok struct{ }
+
 type Service struct{
   name             string
   localAddress     string
@@ -14,8 +16,13 @@ type Service struct{
   connection       net.Conn
 }
 
-type Brok struct{
-  services map[string]Service
+type Config struct{
+  items map[string]ConfigItem
+}
+
+type ConfigItem struct{
+  bindingAddress  string
+  externalAddress  string
 }
 
 func (s *Service) Listen() {
@@ -68,25 +75,10 @@ func (s *Service) Connect() bool{
 /////////////////////////////
 /////////////////////////////
 
-func (b *Brok) Start(){
-  b.services = make(map[string]Service)
-  b.AvailableServices()
-}
-
-func (b *Brok) AvailableServices(){
-  redis := Service{ name: "redis",
-                    localAddress:"localhost:8379",
-                    externalAddress:"localhost:6379"}
-  b.services[redis.name] = redis
-
-  memcached := Service { name: "memcached",
-                         localAddress:"localhost:20211",
-                         externalAddress:"localhost:11211"}
-  b.services[memcached.name] = memcached
-}
 
 func (b *Brok) Listen() {
   listener, err := net.Listen("tcp", ":9666")
+
   if err != nil {
     log.Println("[BROK] Got an Error on trying Listening at :9666")
     return
@@ -110,7 +102,8 @@ func (b *Brok) Handle(clientConn net.Conn){
 }
 
 
-func readConfig(){
+func (c *Config) Read(){
+  c.items = make(map[string]ConfigItem)
   config, err := goconfig.ReadConfigFile("services")
 
   if err != nil{
@@ -125,6 +118,7 @@ func readConfig(){
 
     localAddress , _ := config.GetString(section, "binding-address")
     externalAddress , _ := config.GetString(section, "external-address")
+    c.items[section] = ConfigItem{bindingAddress:localAddress, }
 
     service := Service { name: section,
                          localAddress:localAddress,
@@ -138,10 +132,10 @@ func readConfig(){
 
 func main() {
   //
-  readConfig()
+  config := new(Config)
+  config.Read()
 
   brok := new(Brok)
-  //brok.Start()
   brok.Listen()
 
 }
