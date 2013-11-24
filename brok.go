@@ -26,6 +26,7 @@ type ConfigItem struct{
 
 type Brok struct{
   config *Config
+  services map[string]Service
 }
 
 func (s *Service) Listen() {
@@ -106,11 +107,19 @@ func (b *Brok) Handle(clientConn net.Conn){
 
 
 func (b *Brok) StartServices(){
+  b.services = make(map[string]Service)
+
   for key, configItem := range b.config.items{
 
+    //
     service := Service {name: key,
                         localAddress:configItem.bindingAddress,
                         externalAddress:configItem.externalAddress}
+
+    //
+    b.services[key] = service
+
+    //
     service.Connect()
     go service.Listen()
 
