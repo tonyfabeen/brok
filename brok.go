@@ -127,9 +127,9 @@ func (b *Brok) StartServices(){
 }
 
 
-func (c *Config) Read(){
+func (c *Config) Read(configFile string){
   c.items = make(map[string]ConfigItem)
-  config, err := goconfig.ReadConfigFile("services")
+  config, err := goconfig.ReadConfigFile(configFile)
 
   if err != nil{
     log.Fatalf("[BROK] Fail on Read Config")
@@ -153,7 +153,7 @@ func (c *Config) Read(){
 func main() {
   //
   config := new(Config)
-  config.Read()
+  config.Read("./config/services")
 
   //
   brok := new(Brok)

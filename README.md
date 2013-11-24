@@ -11,4 +11,5 @@ A Dynamic Proxy to Distributed Services
 `
 
 #TODO
-* Everything
+* Add Support to Configuration Backends (Redis, Zookeeper, Go-Discover, etc)
+* Read Brok Settings from brok.cnf
