@@ -7,7 +7,6 @@ import(
   "github.com/msbranco/goconfig"
 )
 
-type Brok struct{ }
 
 type Service struct{
   name             string
@@ -23,6 +22,10 @@ type Config struct{
 type ConfigItem struct{
   bindingAddress  string
   externalAddress  string
+}
+
+type Brok struct{
+  config *Config
 }
 
 func (s *Service) Listen() {
@@ -102,6 +105,19 @@ func (b *Brok) Handle(clientConn net.Conn){
 }
 
 
+func (b *Brok) StartServices(){
+  for key, configItem := range b.config.items{
+
+    service := Service {name: key,
+                        localAddress:configItem.bindingAddress,
+                        externalAddress:configItem.externalAddress}
+    service.Connect()
+    go service.Listen()
+
+  }
+}
+
+
 func (c *Config) Read(){
   c.items = make(map[string]ConfigItem)
   config, err := goconfig.ReadConfigFile("services")
@@ -118,13 +134,8 @@ func (c *Config) Read(){
 
     localAddress , _ := config.GetString(section, "binding-address")
     externalAddress , _ := config.GetString(section, "external-address")
-    c.items[section] = ConfigItem{bindingAddress:localAddress, }
+    c.items[section] = ConfigItem{bindingAddress:localAddress, externalAddress:externalAddress}
 
-    service := Service { name: section,
-                         localAddress:localAddress,
-                         externalAddress:externalAddress}
-    service.Connect()
-    go service.Listen()
   }
 
 }
@@ -135,7 +146,12 @@ func main() {
   config := new(Config)
   config.Read()
 
+  //
   brok := new(Brok)
+  brok.config = config
+
+  //
+  brok.StartServices()
   brok.Listen()
 
 }
