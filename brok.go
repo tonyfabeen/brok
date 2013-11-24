@@ -21,11 +21,11 @@ type Brok struct{
 func (s *Service) Listen() {
   listener, err := net.Listen("tcp", s.localAddress)
   if err != nil {
-    log.Println("[BROK] Error on Listening for Connections at ", s.localAddress)
+    log.Printf("[BROK] Error on Listening for Connections at %s : %s", s.localAddress, err.Error)
     return
   }
 
-  log.Println("[BROK] Service started at ", s.localAddress)
+  log.Printf("[BROK] Service %s started at %s", s.name, s.localAddress)
 
   for {
     connection, err := listener.Accept()
@@ -71,7 +71,6 @@ func (s *Service) Connect() bool{
 func (b *Brok) Start(){
   b.services = make(map[string]Service)
   b.AvailableServices()
-  b.ProxyAll()
 }
 
 func (b *Brok) AvailableServices(){
@@ -79,41 +78,70 @@ func (b *Brok) AvailableServices(){
                     localAddress:"localhost:8379",
                     externalAddress:"localhost:6379"}
   b.services[redis.name] = redis
+
+  memcached := Service { name: "memcached",
+                         localAddress:"localhost:20211",
+                         externalAddress:"localhost:11211"}
+  b.services[memcached.name] = memcached
 }
 
-func (b *Brok) ProxyAll(){
-  for key, service := range b.services {
-    log.Println("KEY\t: ", key,
-                "\nLOCAL\t: ", service.localAddress,
-                "\nREMOTE\t: ", service.externalAddress)
+func (b *Brok) Listen() {
+  listener, err := net.Listen("tcp", ":9666")
+  if err != nil {
+    log.Println("[BROK] Got an Error on trying Listening at :9666")
+    return
+  }
 
-    //
-    if !service.Connect() {
+  log.Println("[BROK] Is Proud to start at :9666")
+
+  for {
+    connection, err := listener.Accept()
+    if err != nil {
       break
     }
-    service.Listen()
+    log.Println("[BROK] Incomming Connection")
+    go b.Handle(connection)
   }
+
+}
+
+func (b *Brok) Handle(clientConn net.Conn){
+  defer clientConn.Close()
 }
 
 
 func readConfig(){
-  c, err := goconfig.ReadConfigFile("services")
+  config, err := goconfig.ReadConfigFile("services")
+
   if err != nil{
-    log.Fatalf("Fail on Read Config")
+    log.Fatalf("[BROK] Fail on Read Config")
   }
 
-  s := c.GetSections()
+  sections := config.GetSections()
 
-  for k, v := range s {
-    log.Println("KEY :", k, "VALUE :", v)
+  for _, section := range sections {
+
+    if section == "default" {continue}
+
+    localAddress , _ := config.GetString(section, "binding-address")
+    externalAddress , _ := config.GetString(section, "external-address")
+
+    service := Service { name: section,
+                         localAddress:localAddress,
+                         externalAddress:externalAddress}
+    service.Connect()
+    go service.Listen()
   }
 
 }
 
+
 func main() {
   //
   readConfig()
+
   brok := new(Brok)
-  brok.Start()
+  //brok.Start()
+  brok.Listen()
 
 }

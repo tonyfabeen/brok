@@ -1,3 +1,8 @@
 [redis]
-binding-port=6379
+binding-address=localhost:8379
+external-address=localhost:6379
+
+[memcached]
+binding-address=localhost:21211
+external-address=localhost:11211
 
