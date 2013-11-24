@@ -1,5 +1,5 @@
 #BROK
-A Dynamic Proxy to Distributed Services
+A Dynamic Proxy for Distributed Services
 
 #Running
 `
