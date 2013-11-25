@@ -5,8 +5,13 @@ import(
   "net"
   "log"
   "github.com/msbranco/goconfig"
+  "github.com/gosexy/redis"
 )
 
+type Backend struct {
+  client *redis.Client
+  consumer *redis.Client
+}
 
 type Service struct{
   name             string
@@ -16,7 +21,8 @@ type Service struct{
 }
 
 type Config struct{
-  items map[string]ConfigItem
+  applicationName  string
+  items            map[string]ConfigItem
 }
 
 type ConfigItem struct{
@@ -66,7 +72,7 @@ func (s *Service) Connect() bool{
   conn, err := net.Dial("tcp", s.externalAddress)
 
   if err != nil {
-      log.Println("[BROK] Error on connect to Service : " + s.name)
+      log.Printf("[BROK] Error on connect to Service : %s", s.name)
       return false
   }
 
@@ -126,7 +132,6 @@ func (b *Brok) StartServices(){
   }
 }
 
-
 func (c *Config) Read(configFile string){
   c.items = make(map[string]ConfigItem)
   config, err := goconfig.ReadConfigFile(configFile)
@@ -150,14 +155,47 @@ func (c *Config) Read(configFile string){
 }
 
 
+func publish(){
+  backend := new(Backend)
+  backend.client = redis.New()
+  backend.client.Connect("127.0.0.1", 6379)
+  for i := 0; i < 14; i++ {
+    backend.client.Publish("brok:redis:development", i)
+  }
+
+}
+
+
+func (backend *Backend) Watch(){
+  backend.consumer = redis.New()
+  backend.consumer.ConnectNonBlock("127.0.0.1", 6379)
+
+  //application:service:environment
+  rec := make(chan []string)
+  go backend.consumer.Subscribe(rec, "brok:redis:development")
+
+  var ls []string
+  for {
+    ls = <- rec
+    log.Println("brok:redis:development is ", ls[2]) //strings.Join(ls, " "))
+  }
+
+
+}
+
 func main() {
   //
   config := new(Config)
   config.Read("./config/services")
+  config.applicationName = "brok"
 
   //
   brok := new(Brok)
   brok.config = config
+
+  //
+  backend := new(Backend)
+  go backend.Watch()
 
   //
   brok.StartServices()
