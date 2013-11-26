@@ -85,11 +85,6 @@ func (s *Service) Connect() bool{
   return true
 }
 
-/////////////////////////////
-/////////////////////////////
-/////////////////////////////
-/////////////////////////////
-
 
 func (b *Brok) Listen() {
   listenPort := strings.Join([]string{":", b.config["binding-port"]}, "")
@@ -186,18 +181,18 @@ func (backend *Backend) Watch(){
   backend.consumer = redis.New()
   backend.consumer.ConnectNonBlock(backendHost,backendPort)
 
-  //application:service:environment
+  //application:tag:service
   rec := make(chan []string)
-  go backend.consumer.Subscribe(rec, "brok:redis:development")
+  go backend.consumer.Subscribe(rec, "brok:v0.0.1:redis", "brok:v0.0.1:mysql")
 
   var ls []string
   for {
     ls = <- rec
-    log.Println("brok:redis:development is ", ls[2]) //strings.Join(ls, " "))
+    log.Printf("Channel: %s / Value : %s", ls[1], ls[2]) //strings.Join(ls, " "))
   }
 
-
 }
+
 
 func main() {
   //
