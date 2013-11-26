@@ -38,6 +38,8 @@ type Brok struct{
   services        map[string]Service
 }
 
+var brok *Brok
+
 func (s *Service) Listen() {
   listener, err := net.Listen("tcp", s.localAddress)
   if err != nil {
@@ -171,6 +173,7 @@ func (b *Brok) ReadConfig(configFile string){
   b.config["backend-type"], _ = config.GetString("brok", "backend-type")
   b.config["binding-port"], _ = config.GetString("brok", "binding-port")
   b.config["backend-host"], _ = config.GetString("backend", "host")
+  b.config["backend-port"], _ = config.GetString("backend", "port")
   b.config["backend-user"], _ = config.GetString("backend", "user")
   b.config["backend-password"], _ = config.GetString("backend", "password")
 
@@ -178,8 +181,10 @@ func (b *Brok) ReadConfig(configFile string){
 
 
 func (backend *Backend) Watch(){
+  backendHost := brok.config["backend-host"]
+  backendPort := uint(6379) //Move port to dynamic attribute
   backend.consumer = redis.New()
-  backend.consumer.ConnectNonBlock("127.0.0.1", 6379)
+  backend.consumer.ConnectNonBlock(backendHost,backendPort)
 
   //application:service:environment
   rec := make(chan []string)
@@ -198,10 +203,9 @@ func main() {
   //
   servicesConfig := new(Config)
   servicesConfig.ReadServicesFile("./config/services")
-  servicesConfig.applicationName = "brok"
 
   //
-  brok := new(Brok)
+  brok = new(Brok)
   brok.ReadConfig("./config/brok.conf")
   brok.servicesConfig = servicesConfig
 
