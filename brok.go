@@ -39,6 +39,8 @@ type Brok struct{
 }
 
 var brok *Brok
+var backend *Backend
+var currentVersion string
 
 func (s *Service) Listen() {
   listener, err := net.Listen("tcp", s.localAddress)
@@ -174,16 +176,28 @@ func (b *Brok) ReadConfig(configFile string){
 
 }
 
-
-func (backend *Backend) Watch(){
+func (backend *Backend) Connect(){
   backendHost := brok.config["backend-host"]
   backendPort := uint(6379) //Move port to dynamic attribute
   backend.consumer = redis.New()
   backend.consumer.ConnectNonBlock(backendHost,backendPort)
+}
 
+func (b *Brok) Services() []string{
+  services := make([]string, len(b.services))
+  i := 0
+  for service, _ := range b.services {
+    channel := strings.Join([]string{b.applicationName, currentVersion, service},":")
+    services[i] = channel
+    i++
+  }
+  return services
+}
+
+func (backend *Backend) Watch(channel string){
   //application:tag:service
   rec := make(chan []string)
-  go backend.consumer.Subscribe(rec, "brok:v0.0.1:redis", "brok:v0.0.1:mysql")
+  go backend.consumer.Subscribe(rec, channel)
 
   var ls []string
   for {
@@ -193,8 +207,8 @@ func (backend *Backend) Watch(){
 
 }
 
-
 func main() {
+  currentVersion = "v0.0.1"
   //
   servicesConfig := new(Config)
   servicesConfig.ReadServicesFile("./config/services")
@@ -206,10 +220,14 @@ func main() {
 
   //
   backend := new(Backend)
-  go backend.Watch()
+  backend.Connect()
 
   //
   brok.StartServices()
+  for _, v := range brok.Services(){
+    go backend.Watch(v)
+  }
   brok.Listen()
+
 
 }
