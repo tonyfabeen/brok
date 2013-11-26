@@ -4,6 +4,7 @@ import(
   "io"
   "net"
   "log"
+  "strings"
   "github.com/msbranco/goconfig"
   "github.com/gosexy/redis"
 )
@@ -31,8 +32,10 @@ type ConfigItem struct{
 }
 
 type Brok struct{
-  config *Config
-  services map[string]Service
+  applicationName string
+  config          map[string]string
+  servicesConfig  *Config
+  services        map[string]Service
 }
 
 func (s *Service) Listen() {
@@ -87,14 +90,15 @@ func (s *Service) Connect() bool{
 
 
 func (b *Brok) Listen() {
-  listener, err := net.Listen("tcp", ":9666")
+  listenPort := strings.Join([]string{":", b.config["binding-port"]}, "")
+  listener, err := net.Listen("tcp", listenPort)
 
   if err != nil {
-    log.Println("[BROK] Got an Error on trying Listening at :9666")
+    log.Printf("[BROK] Got an Error on trying Listening at %s", listenPort)
     return
   }
 
-  log.Println("[BROK] Is Proud to start at :9666")
+  log.Println("[BROK] Is Proud to start at %s", listenPort)
 
   for {
     connection, err := listener.Accept()
@@ -115,7 +119,7 @@ func (b *Brok) Handle(clientConn net.Conn){
 func (b *Brok) StartServices(){
   b.services = make(map[string]Service)
 
-  for key, configItem := range b.config.items{
+  for key, configItem := range b.servicesConfig.items{
 
     //
     service := Service {name: key,
@@ -132,7 +136,7 @@ func (b *Brok) StartServices(){
   }
 }
 
-func (c *Config) Read(configFile string){
+func (c *Config) ReadServicesFile(configFile string){
   c.items = make(map[string]ConfigItem)
   config, err := goconfig.ReadConfigFile(configFile)
 
@@ -155,13 +159,20 @@ func (c *Config) Read(configFile string){
 }
 
 
-func publish(){
-  backend := new(Backend)
-  backend.client = redis.New()
-  backend.client.Connect("127.0.0.1", 6379)
-  for i := 0; i < 14; i++ {
-    backend.client.Publish("brok:redis:development", i)
+func (b *Brok) ReadConfig(configFile string){
+  b.config = make(map[string]string)
+  config, err := goconfig.ReadConfigFile(configFile)
+
+  if err != nil{
+    log.Fatalf("[BROK] Fail on Read Config")
   }
+
+  b.applicationName, _ = config.GetString("brok", "application-name")
+  b.config["backend-type"], _ = config.GetString("brok", "backend-type")
+  b.config["binding-port"], _ = config.GetString("brok", "binding-port")
+  b.config["backend-host"], _ = config.GetString("backend", "host")
+  b.config["backend-user"], _ = config.GetString("backend", "user")
+  b.config["backend-password"], _ = config.GetString("backend", "password")
 
 }
 
@@ -185,13 +196,14 @@ func (backend *Backend) Watch(){
 
 func main() {
   //
-  config := new(Config)
-  config.Read("./config/services")
-  config.applicationName = "brok"
+  servicesConfig := new(Config)
+  servicesConfig.ReadServicesFile("./config/services")
+  servicesConfig.applicationName = "brok"
 
   //
   brok := new(Brok)
-  brok.config = config
+  brok.ReadConfig("./config/brok.conf")
+  brok.servicesConfig = servicesConfig
 
   //
   backend := new(Backend)
